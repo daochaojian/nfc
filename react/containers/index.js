@@ -1,12 +1,18 @@
-import React from 'react';
-import Navigator from '../navigators';
+// import { observer } from 'mobx-react/native';
+import React, { Component } from 'react';
+import AppNavigator from '../navigators';
+import { createAppContainer } from 'react-navigation';
 
-/* eslint-disable react/prop-types */
-class Container extends React.Component {
+const AppContainer = createAppContainer(AppNavigator);
 
+export default class App extends Component {
   render() {
-    return <Navigator />;
+    return (
+      <AppContainer
+        ref={nav => {
+          this.navigator = nav;
+        }}
+      />
+    );
   }
 }
-/* eslint-enable react/prop-types */
-export default Container;

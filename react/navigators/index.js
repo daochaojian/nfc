@@ -3,26 +3,24 @@ import {
   View,
   Image,
 } from 'react-native';
-import { createStackNavigator, createBottomTabNavigator, createSwitchNavigator } from 'react-navigation';
-import Home from '../../App';
+import { createStackNavigator } from 'react-navigation';
+import Home from '../containers/Home';
 import Web from '../containers/Web';
 
-const StackAppNavigator = createStackNavigator(StackAppConfigs, StackAppConfig);
-
 const StackRouteConfigs = {
+  // Web: { screen: Web },
   Home: { screen: Home },
   Web: { screen: Web },
 };
 
-const StackConfig = {
-  // navigationOptions,
-  initialRouteName: 'Home',
-  headerMode: 'none',
-  cardStyle: {
-    backgroundColor: colors.white,
-  },
-};
+// const StackConfig = {
+//   // navigationOptions,
+//   initialRouteName: 'Home',
+//   cardStyle: {
+//     backgroundColor: colors.white,
+//   },
+// };
 
-const StackNavigator = createStackNavigator(StackRouteConfigs, StackConfig);
+const StackNavigator = createStackNavigator(StackRouteConfigs);
 
 export default StackNavigator;
