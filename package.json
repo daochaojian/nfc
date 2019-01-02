@@ -7,8 +7,10 @@
     "test": "jest"
   },
   "dependencies": {
+    "prop-types": "15.6.2",
     "react": "16.6.1",
     "react-native": "0.57.7",
+    "react-native-fused-location": "^0.3.2",
     "react-native-gesture-handler": "1.0.12",
     "react-native-nfc-manager": "1.1.1",
     "react-native-permissions": "^1.1.1",

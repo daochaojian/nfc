@@ -5,17 +5,20 @@ import {
   Alert,
   StyleSheet,
   Linking,
+  ActivityIndicator,
   NetInfo,
   Image,
   NativeModules,
   Platform,
   PermissionsAndroid,
+  DeviceEventEmitter,
 } from 'react-native';
+import FusedLocation from 'react-native-fused-location';
 import { SafeAreaView } from 'react-navigation';
 import { WebView } from "react-native-webview";
-import publicIP from 'react-native-public-ip';
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
+import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
 import netErr from '../images/errorNetwork.png';
 import scan from '../images/nfc.png';
 
@@ -23,9 +26,27 @@ const styles = StyleSheet.create({
   containerView: {
     flex: 1,
   },
+  webView: {
+    // zIndex: 9999,
+  },
+  touch: {
+    marginHorizontal: 50,
+    marginTop: 15,
+    borderRadius: 20,
+    flexDirection: 'row',
+    height: 45,
+    backgroundColor: '#1BAF8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
+  touchText: {
+    fontSize: 14,
+    color: '#ffffff',
+  },
   container: {
     flex: 1,
-    alignItems: 'center',
+    // alignItems: 'center',
     justifyContent: 'center',
   },
   error: {
@@ -51,6 +72,16 @@ const styles = StyleSheet.create({
     height: 220,
     width: 220,
   },
+  indecator: {
+    zIndex: 9999,
+    position: 'absolute',
+    bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tipsText: {
     fontSize: 14,
     marginTop: 15,
@@ -72,7 +103,14 @@ class Home extends React.Component {
   state = {
     url: '',
     netStatus: true,
+    latitude: 25.0623611,
+    longitude: 102.6717603,
     ip: '',
+    uri: '',
+    title: '',
+    loading: false,
+    isBackButtonEnable: false,
+    isForwardButtonEnable: false,
   };
 
   componentWillMount() {
@@ -80,6 +118,7 @@ class Home extends React.Component {
       PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       ).then(value => {
+        console.log(value);
         if (!value) {
           PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -116,13 +155,6 @@ class Home extends React.Component {
 
     NetInfo.isConnected.fetch().then(isConnected => {
       if (isConnected) {
-        publicIP()
-        .then(ip => {
-          console.log(ip);
-        })
-        .catch(error => {
-          console.log(error);
-        });
       } else {
         this.setState({ netStatus: isConnected });
       }
@@ -141,20 +173,21 @@ class Home extends React.Component {
     NfcManager.unregisterTagEvent();
   }
 
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.navigation.state.params) {
+      const { needRefresh } = (nextProps.navigation
+        && nextProps.navigation.state
+        && nextProps.navigation.state.params) || {};
+      if (needRefresh) {
+        this.isSupported();
+      }
+    }
+  }
+
   handleNetWorkChange = (status) => {
     if (!status) {
       this.setState({ netStatus: status });
     }
-  }
-
-  checkIp = () => {
-    publicIP()
-    .then(ip => {
-      this.setState({ ip });
-    })
-    .catch(error => {
-      console.log(error);
-    });
   }
 
   checkIosPermission = () => {
@@ -202,7 +235,18 @@ class Home extends React.Component {
     );
   }
 
-  getLocation = () => {
+  getLocation = async () => {
+    // try {
+    //   FusedLocation.setLocationPriority(FusedLocation.Constants.LOW_POWER);
+    //   const localLocation = NativeModules.Location;
+    //   const respon = await localLocation.getLocation();
+    //   console.log(respon);
+    // } catch(err) {
+    //   console.log(err);
+    // }
+    // DeviceEventEmitter.addListener('onLocation', (e) => {
+    //   console.log(e);
+    // });
     global.navigator.geolocation.getCurrentPosition(
       (location) => {
         if (location) {
@@ -222,7 +266,7 @@ class Home extends React.Component {
         if (location) {
           this.setState({
             latitude: location.coords.latitude,
-            longtitude: location.coords.longtitude,
+            longitude: location.coords.longitude,
           });
         }
       },
@@ -247,25 +291,28 @@ class Home extends React.Component {
           ],
         );
       }
-    }).catch()
+    }).catch();
   }
 
   startNFC = () => {
     const { navigation } = this.props;
     const { url } = this.state;
-
+    const key = navigation.state.key;
     NfcManager.registerTagEvent(tag => {
       if (tag.ndefMessage && tag.ndefMessage.length) {
         const text = this.parseUri(tag);
-        console.log(tag);
         if (text !== null) {
-          if (url) {
-            this.postMessages({ url: text });
-          } else {
+            navigation.navigate('Web', {
+              url: text,
+              login: false,
+              key,
+              latitude: this.state.latitude,
+              longitude: this.state.longitude,
+            });
+            NfcManager.unregisterTagEvent();
             this.setState({ url: text });
           }
           return ;
-        }
       }
       Alert.alert(
         'failed',
@@ -277,13 +324,16 @@ class Home extends React.Component {
     }, 'Hold your device over the tag', true);
   }
 
+  getQueryByName = (url, name) => {
+    var reg = new RegExp('[?&]'+ name + '=([^&#]+)');
+    var query = url.match(reg);
+    return query ? query[1] : null;
+  }
+
   checkNetInfo = () => {
     NetInfo.isConnected.addEventListener(
       'connectionChange',
       (status) => {
-        if (status) {
-          this.checkIp();
-        }
         this.setState({ netStatus: status });
       }
     );
@@ -292,7 +342,6 @@ class Home extends React.Component {
   parseUri = (tag) => {
     try {
         if (Ndef.isType(tag.ndefMessage[0], Ndef.TNF_WELL_KNOWN, Ndef.RTD_URI)) {
-            console.log(Ndef.uri.decodePayload(tag.ndefMessage[0].payload));
             return Ndef.uri.decodePayload(tag.ndefMessage[0].payload);
         }
     } catch (e) {
@@ -313,19 +362,44 @@ class Home extends React.Component {
     }
   }
 
-  postMessages = (value) => {
-    if (this.webview && this.webview !== null) {
-      this.webview.postMessage(JSON.stringify(value));
+  onNavigationStateChange = (navState) => {
+    this.setState({
+      uri: navState.url,
+      title: navState.title,
+      loading: navState.loading,
+      isBackButtonEnable: navState.canGoBack,
+      isForwardButtonEnable: navState.canGoForward,
+    });
+  }
+
+  handleLoadProgress = (e) => {
+    if (e && e.nativeEvent) {
+      if (e.nativeEvent.progress >= 1) {
+        this.setState({ loading: false });
+      }
     }
   }
 
-  onMessage = (e) => {
-    console.log(JSON.parse(e.nativeEvent.data));
+  handleStart = () => {
+    this.setState({ loading: true });
+  }
+
+  jumpToWeb = () => {
+    const { navigation } = this.props;
+    const key = navigation.state.key;
+    navigation.navigate('Web', {
+      url: 'https://oakandbarley.app.dmsj.network/',
+      login: true,
+      key,
+      latitude: this.state.latitude,
+      longitude: this.state.longitude,
+    });
+    NfcManager.unregisterTagEvent();
   }
 
   render() {
     const { navigation } = this.props;
-    const { url, netStatus } = this.state;
+    const { url, netStatus, loading, latitude, longitude } = this.state;
     console.log(this.state);
     return (
       <SafeAreaView style={styles.containerView}>
@@ -333,25 +407,24 @@ class Home extends React.Component {
           <Image source={netErr} style={styles.image} resizeMode="contain" />
           <Text style={styles.text}>connect error, please connect to internet first!</Text>
         </View>}
-        {url ? <WebView
-            style={styles.webView}
-            useWebKit={true}
-            geolocationEnabled
-            ref={(ref) => this.webview = ref}
-            source={{ uri: url }}
-            startInLoadingState={true}
-            onMessage={this.onMessage}
-            onLoadProgress={(e) => console.log(e.nativeEvent.progress)}
-            // onLoad={this.postMessages}
-            onLoadEnd={(err) => console.log(err)}
-          />
-          : <View style={styles.container}>
+        {loading &&
+        <View style={styles.indecator}>
+            <ActivityIndicator
+              animating
+              color="#1BAF8F"
+              size="large"
+            />
+          </View>
+        }
+          <View style={styles.container}>
           <View style={styles.tips}>
             <Image source={scan} style={styles.image} resizeMode="contain" />
             <Text style={styles.tipsText}>Hold your device over the tag</Text>
           </View>
+          <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
+            <Text style={styles.touchText}>Log in</Text>
+          </TouchableWithFeedback>
         </View>
-        }
       </SafeAreaView>
     );
   }

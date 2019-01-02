@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <div>
+    <button class="favorite styled"
+        onclick="myFunction()"
+        type="button">
+        get ip
+    </button>
+  </div>
+  <div>
+    <p id="demo"></p>
+  </div>
+  <div>
+      <input id="myEmail" >
+  </div>
+  <script type="text/javascript">
+    document.addEventListener('message', function(e) {
+      const data = JSON.parse(e.data);
+      if (e.data) {
+        const data = JSON.parse(e.data);
+        alert(`${data.uid}`)
+      }
+      document.getElementById('demo').innerHTML = e.data;
+      // document.getElementById('myEmail').value = e.data;
+    });
+    function myFunction() {
+      window.postMessage(JSON.stringify({ ipAndLocation: true }));
+    }
+  </script>
+</body>
+</html>

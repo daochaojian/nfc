@@ -4084,6 +4084,14 @@ react-lifecycles-compat@^3.0.4:
   version "3.0.4"
   resolved "http://registry.npm.taobao.org/react-lifecycles-compat/download/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
 
+react-native-fused-location@^0.3.2:
+  version "0.3.2"
+  resolved "http://registry.npm.taobao.org/react-native-fused-location/download/react-native-fused-location-0.3.2.tgz#aa51283484f2e343107ca00485a931ecd815e958"
+
+react-native-geolocation-service@^2.0.0:
+  version "2.0.0"
+  resolved "http://registry.npm.taobao.org/react-native-geolocation-service/download/react-native-geolocation-service-2.0.0.tgz#9fbab4953726b3a3ca9a74388a92dc1e1997127a"
+
 react-native-gesture-handler@1.0.12, react-native-gesture-handler@^1.0.0:
   version "1.0.12"
   resolved "http://registry.npm.taobao.org/react-native-gesture-handler/download/react-native-gesture-handler-1.0.12.tgz#99a22f90212df299245357dbd3a9a01c788f310b"
