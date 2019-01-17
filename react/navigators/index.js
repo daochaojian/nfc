@@ -6,11 +6,13 @@ import {
 import { createStackNavigator } from 'react-navigation';
 import Home from '../containers/Home';
 import Web from '../containers/Web';
+import ScanDetail from '../containers/ScanDetail';
 
 const StackRouteConfigs = {
   // Web: { screen: Web },
   Home: { screen: Home },
   Web: { screen: Web },
+  ScanDetail: { screen: ScanDetail },
 };
 
 // const StackConfig = {

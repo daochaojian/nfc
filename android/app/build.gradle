@@ -98,7 +98,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
-        applicationId "com.nfc"
+        applicationId "network.dmsj.scannerapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -107,6 +107,14 @@ android {
             abiFilters "armeabi-v7a", "x86"
         }
     }
+    // signingConfigs {
+    //     release {
+    //          storeFile file(RELEASE_STORE_FILE)
+    //          storePassword RELEASE_STORE_PASSWORD
+    //          keyAlias RELEASE_KEY_ALIAS
+    //          keyPassword RELEASE_KEY_PASSWORD
+    //     }
+    // }
     splits {
         abi {
             reset()
@@ -117,6 +125,7 @@ android {
     }
     buildTypes {
         release {
+            // signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
@@ -137,7 +146,6 @@ android {
 }
 
 dependencies {
-    compile project(':react-native-fused-location')
     implementation project(':react-native-webview')
     implementation project(':react-native-gesture-handler')
     implementation project(':react-native-nfc-manager')

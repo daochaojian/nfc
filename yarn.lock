@@ -2264,7 +2264,7 @@ inquirer@^3.0.6:
     strip-ansi "^4.0.0"
     through "^2.3.6"
 
-invariant@^2.2.2, invariant@^2.2.4:
+invariant@^2.1.0, invariant@^2.2.2, invariant@^2.2.4:
   version "2.2.4"
   resolved "http://registry.npm.taobao.org/invariant/download/invariant-2.2.4.tgz#610f3c92c9359ce1db616e538008d23ff35158e6"
   dependencies:
@@ -3995,7 +3995,7 @@ prompts@^0.1.9:
     kleur "^2.0.1"
     sisteransi "^0.1.1"
 
-prop-types@^15.5.10, prop-types@^15.5.8, prop-types@^15.6.1, prop-types@^15.6.2:
+prop-types@15.6.2, prop-types@^15.5.10, prop-types@^15.5.8, prop-types@^15.6.1, prop-types@^15.6.2:
   version "15.6.2"
   resolved "http://registry.npm.taobao.org/prop-types/download/prop-types-15.6.2.tgz#05d5ca77b4453e985d60fc7ff8c859094a497102"
   dependencies:
@@ -4084,13 +4084,11 @@ react-lifecycles-compat@^3.0.4:
   version "3.0.4"
   resolved "http://registry.npm.taobao.org/react-lifecycles-compat/download/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
 
-react-native-fused-location@^0.3.2:
-  version "0.3.2"
-  resolved "http://registry.npm.taobao.org/react-native-fused-location/download/react-native-fused-location-0.3.2.tgz#aa51283484f2e343107ca00485a931ecd815e958"
-
-react-native-geolocation-service@^2.0.0:
-  version "2.0.0"
-  resolved "http://registry.npm.taobao.org/react-native-geolocation-service/download/react-native-geolocation-service-2.0.0.tgz#9fbab4953726b3a3ca9a74388a92dc1e1997127a"
+react-native-cookies@^3.3.0:
+  version "3.3.0"
+  resolved "http://registry.npm.taobao.org/react-native-cookies/download/react-native-cookies-3.3.0.tgz#527f65eb2d8a7a000107706bb11beb57f511e701"
+  dependencies:
+    invariant "^2.1.0"
 
 react-native-gesture-handler@1.0.12, react-native-gesture-handler@^1.0.0:
   version "1.0.12"
@@ -4103,6 +4101,10 @@ react-native-gesture-handler@1.0.12, react-native-gesture-handler@^1.0.0:
 react-native-nfc-manager@1.1.1:
   version "1.1.1"
   resolved "http://registry.npm.taobao.org/react-native-nfc-manager/download/react-native-nfc-manager-1.1.1.tgz#25e7963df15d370cd5ab3cad6ce93aa506b5aa10"
+
+react-native-offline-cache-webview@^0.1.2:
+  version "0.1.2"
+  resolved "http://registry.npm.taobao.org/react-native-offline-cache-webview/download/react-native-offline-cache-webview-0.1.2.tgz#3cd1d95d27a5187bb8e113c3b289e9dd3932ecab"
 
 react-native-permissions@^1.1.1:
   version "1.1.1"

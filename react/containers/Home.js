@@ -12,15 +12,15 @@ import {
   Platform,
   PermissionsAndroid,
   DeviceEventEmitter,
+  AsyncStorage,
 } from 'react-native';
-import FusedLocation from 'react-native-fused-location';
 import { SafeAreaView } from 'react-navigation';
-import { WebView } from "react-native-webview";
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
 import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
 import netErr from '../images/errorNetwork.png';
 import scan from '../images/nfc.png';
+import logo from '../images/logo_dmsj.png';
 
 const styles = StyleSheet.create({
   containerView: {
@@ -40,6 +40,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
   },
+  touchTop: {
+    backgroundColor: '#f44336',
+  },
   touchText: {
     fontSize: 14,
     color: '#ffffff',
@@ -47,7 +50,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     // alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
   },
   error: {
     position: 'absolute',
@@ -67,6 +70,8 @@ const styles = StyleSheet.create({
   image: {
     height: 220,
     width: 280,
+
+    overflow: 'hidden',
   },
   scanImage: {
     height: 220,
@@ -102,6 +107,7 @@ class Home extends React.Component {
 
   state = {
     url: '',
+    isLogin: false,
     netStatus: true,
     latitude: 25.0623611,
     longitude: 102.6717603,
@@ -118,7 +124,6 @@ class Home extends React.Component {
       PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       ).then(value => {
-        console.log(value);
         if (!value) {
           PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -152,17 +157,14 @@ class Home extends React.Component {
     } else {
       this.checkIosPermission();
     }
-
+    this.retrieveStatus();
     NetInfo.isConnected.fetch().then(isConnected => {
-      if (isConnected) {
-      } else {
+      if (!isConnected) {
         this.setState({ netStatus: isConnected });
       }
     });
-
     this.checkNetInfo();
-
-    this.isSupported();
+    // this.isSupported();
   }
 
   componentWillUnmount() {
@@ -175,13 +177,31 @@ class Home extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.navigation.state.params) {
-      const { needRefresh } = (nextProps.navigation
+      const { needRefresh, isLogin } = (nextProps.navigation
         && nextProps.navigation.state
         && nextProps.navigation.state.params) || {};
-      if (needRefresh) {
-        this.isSupported();
+      if (isLogin) {
+        this.setState({ isLogin: true });
       }
     }
+  }
+
+  retrieveStatus = async () => {
+    try {
+      const value = await AsyncStorage.getItem('isLogin');
+      console.log(JSON.parse(value));
+      if (value !== null) {
+        this.setState({
+          isLogin: JSON.parse(value).isLogin,
+        });
+      }
+      return value;
+     } catch (error) {
+      console.log(error);
+       return null;
+       // Error retrieving data
+     }
+     return null;
   }
 
   handleNetWorkChange = (status) => {
@@ -192,7 +212,11 @@ class Home extends React.Component {
 
   checkIosPermission = () => {
     Permissions.check('location').then(response => {
-      if (response !== 'authorized') {
+      if (response === 'undetermined') {
+        this.getLocation();
+        return ;
+      }
+      if (response === 'denied') {
         Alert.alert(
           'ask permisssion',
           'Allow location access in Setting->Apps to get location?',
@@ -203,7 +227,7 @@ class Home extends React.Component {
       } else {
         this.getLocation();
       }
-    })
+    });
   }
 
   openLinking = () => {
@@ -236,17 +260,6 @@ class Home extends React.Component {
   }
 
   getLocation = async () => {
-    // try {
-    //   FusedLocation.setLocationPriority(FusedLocation.Constants.LOW_POWER);
-    //   const localLocation = NativeModules.Location;
-    //   const respon = await localLocation.getLocation();
-    //   console.log(respon);
-    // } catch(err) {
-    //   console.log(err);
-    // }
-    // DeviceEventEmitter.addListener('onLocation', (e) => {
-    //   console.log(e);
-    // });
     global.navigator.geolocation.getCurrentPosition(
       (location) => {
         if (location) {
@@ -271,27 +284,58 @@ class Home extends React.Component {
         }
       },
       (err) => {
-        console.log(err);
+        Permissions.check('location').then(response => {
+          if (response === 'undetermined') {
+            this.getLocation();
+            return;
+          }
+          if (response === 'denied') {
+            Alert.alert(
+              'ask permisssion',
+              'Allow location access in Setting->Apps to get location?',
+              [{text: 'cancel', onPress: () => {}, style: 'cancel'},
+                { text: 'ok', onPress: () => this.openLinking()},
+              ],
+            );
+            return;
+          }
+        });
       },
       { enableHighAccuracy: false, timeout: 5000 },
     );
   };
 
   isSupported = () => {
-    NfcManager.isSupported()
-    .then(supported => {
-      if (supported) {
-        this.startNFC();
-      } else {
-        Alert.alert(
-          'info',
-          'your device don\'t support NFC or don\'t have permission, please check!',
-          [
-              { text: 'ok', onPress: () => {} },
-          ],
-        );
+    NfcManager.start({
+      onSessionClosedIOS: () => {
+        NfcManager.unregisterTagEvent();
       }
-    }).catch();
+    })
+    .then(supported => {
+      console.log(supported);
+      this.startNFC();
+    }).catch(() => {
+      Alert.alert(
+        'info',
+        'your device don\'t support NFC or don\'t have permission, please check!',
+        [
+            { text: 'ok', onPress: () => {} },
+        ],
+      );
+    });
+  }
+
+  jumpToTag = () => {
+    const { navigation } = this.props;
+    const key = navigation.state.key;
+    navigation.navigate('ScanDetail', {
+      // url: 'https://app.dmsj.network?uid=MbRb2cLe4RJ',
+      // url: 'https://app.dmsj.network?uid=AkRZVcb6yRY',
+      url: 'https://app.dmsj.network?uid=zwQlLcBOWQx',
+      key,
+      latitude: this.state.latitude,
+      longitude: this.state.longitude,
+    });
   }
 
   startNFC = () => {
@@ -301,10 +345,10 @@ class Home extends React.Component {
     NfcManager.registerTagEvent(tag => {
       if (tag.ndefMessage && tag.ndefMessage.length) {
         const text = this.parseUri(tag);
+        console.log(text);
         if (text !== null) {
-            navigation.navigate('Web', {
-              url: text,
-              login: false,
+            navigation.navigate('ScanDetail', {
+              url: text.replace(/^http/,"https"),
               key,
               latitude: this.state.latitude,
               longitude: this.state.longitude,
@@ -321,7 +365,7 @@ class Home extends React.Component {
             { text: 'ok', onPress: () => {} },
         ],
       );
-    }, 'Hold your device over the tag', true);
+    }, 'Hold your device over the tag', false);
   }
 
   getQueryByName = (url, name) => {
@@ -350,40 +394,6 @@ class Home extends React.Component {
     return null;
   }
 
-  goToNfcSetting = () => {
-    if (Platform.OS === 'android') {
-        NfcManager.goToNfcSetting()
-          .then(result => {
-              console.log('goToNfcSetting OK', result)
-          })
-          .catch(error => {
-              console.warn('goToNfcSetting fail', error)
-          });
-    }
-  }
-
-  onNavigationStateChange = (navState) => {
-    this.setState({
-      uri: navState.url,
-      title: navState.title,
-      loading: navState.loading,
-      isBackButtonEnable: navState.canGoBack,
-      isForwardButtonEnable: navState.canGoForward,
-    });
-  }
-
-  handleLoadProgress = (e) => {
-    if (e && e.nativeEvent) {
-      if (e.nativeEvent.progress >= 1) {
-        this.setState({ loading: false });
-      }
-    }
-  }
-
-  handleStart = () => {
-    this.setState({ loading: true });
-  }
-
   jumpToWeb = () => {
     const { navigation } = this.props;
     const key = navigation.state.key;
@@ -397,10 +407,13 @@ class Home extends React.Component {
     NfcManager.unregisterTagEvent();
   }
 
+  startScanner = () => {
+    this.isSupported();
+  };
+
   render() {
     const { navigation } = this.props;
-    const { url, netStatus, loading, latitude, longitude } = this.state;
-    console.log(this.state);
+    const { url, netStatus, loading, latitude, longitude, isLogin } = this.state;
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -418,12 +431,24 @@ class Home extends React.Component {
         }
           <View style={styles.container}>
           <View style={styles.tips}>
-            <Image source={scan} style={styles.image} resizeMode="contain" />
+            <Image source={logo} style={styles.image} resizeMode="contain" />
             <Text style={styles.tipsText}>Hold your device over the tag</Text>
           </View>
-          <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
-            <Text style={styles.touchText}>Log in</Text>
-          </TouchableWithFeedback>
+          <View>
+            <TouchableWithFeedback
+              style={[styles.touch, styles.touchTop]}
+              // onPress={this.startScanner}
+              onPress={this.jumpToTag}
+            >
+              <Text style={styles.touchText}>Scan Tag</Text>
+            </TouchableWithFeedback>
+            {!isLogin &&
+              <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
+                <Text style={styles.touchText}>Log In</Text>
+              </TouchableWithFeedback>
+            }
+          </View>
+
         </View>
       </SafeAreaView>
     );

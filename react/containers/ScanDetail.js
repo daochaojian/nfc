@@ -17,12 +17,28 @@ import { SafeAreaView, NavigationActions } from 'react-navigation';
 import { WebView } from "react-native-webview";
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
+import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
 import netErr from '../images/errorNetwork.png';
 import scan from '../images/nfc.png';
 
 const styles = StyleSheet.create({
   containerView: {
     flex: 1,
+  },
+  touch: {
+    marginHorizontal: 50,
+    marginTop: 15,
+    borderRadius: 20,
+    flexDirection: 'row',
+    height: 45,
+    backgroundColor: '#1BAF8F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+  },
+  touchText: {
+    fontSize: 14,
+    color: '#ffffff',
   },
   webView: {
     zIndex: 999,
@@ -103,22 +119,19 @@ class Home extends React.Component {
 
   componentWillMount() {
     const { navigation } = this.props;
+    console.log('scan detail');
     this.retrieveCookie();
     const url = navigation.getParam('url', '');
-    const login = navigation.getParam('login', false);
     const key = navigation.getParam('key', '');
     const latitude = navigation.getParam('latitude', 0);
     const longitude = navigation.getParam('longitude', 0);
     this.setState({
-      url,
-      login,
+      url: `${url}&latitude=${latitude}&longitude=${longitude}`,
       key,
       latitude,
       longitude,
     });
-    if (!login) {
-      this.isSupported();
-    }
+    this.isSupported();
   }
 
   componentWillUnmount() {
@@ -187,15 +200,10 @@ class Home extends React.Component {
       if (tag.ndefMessage && tag.ndefMessage.length) {
         const text = this.parseUri(tag);
         if (text !== null) {
-          if (this.state.login && this.state.first) {
-            const params = {
-              uid: this.getQueryByName(text, 'uid'),
-            }
-            this.webview.postMessage(JSON.stringify(params));
-          } else {
-            console.log('change url');
-            this.setState({ url: text, first: true });
+          const params = {
+            uid: this.getQueryByName(text, 'uid'),
           }
+          this.webview.postMessage(JSON.stringify(params));
           return ;
         }
       }
@@ -240,7 +248,18 @@ class Home extends React.Component {
 
   onNavigationStateChange = (navState) => {
     const { navigation } = this.props;
-    console.log(navState.url);
+    const { url } = this.state;
+    console.log(navState);
+    // if (navState.url === url) {
+    //   this.setState({
+    //     url: `${navState.url}`,
+    //     title: navState.title,
+    //     loading: navState.loading,
+    //     isBackButtonEnable: navState.canGoBack,
+    //     isForwardButtonEnable: navState.canGoForward,
+    //   });
+    //   return ;
+    // }
     this.setState({
       uri: navState.url,
       title: navState.title,
@@ -258,7 +277,8 @@ class Home extends React.Component {
     }
   }
 
-  handleStart = () => {
+  handleStart = (navState) => {
+    console.log('here');
     this.setState({ loading: true });
   }
 
@@ -266,7 +286,6 @@ class Home extends React.Component {
     const { navigation } = this.props;
     const { url } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
-    console.log(data);
     if (data.isLogin) {
       this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
@@ -286,10 +305,16 @@ class Home extends React.Component {
     }
   }
 
+  refersh = () => {
+    if (this.webview) {
+      this.webview.reload();
+    }
+  }
+
   render() {
     const { navigation } = this.props;
-    const { url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
-    console.log(cookie);
+    const { url, netStatus, fetching, loading, latitude, longitude, cookie } = this.state;
+    console.log(url);
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -309,12 +334,15 @@ class Home extends React.Component {
         <WebView
             style={styles.webView}
             javaScriptEnabled
-            useWebKit
+            // useWebKit
             geolocationEnabled
             ref={(ref) => this.webview = ref}
             source={{
-              uri: login ? first ? `${url}&latitude=${latitude}&longitude=${longitude}` : 'https://oakandbarley.app.dmsj.network/' : `${url}&latitude=${latitude}&longitude=${longitude}`,
-              headers: {"cookie": cookie }
+              uri: url,
+              headers: {
+                "cookie": cookie,
+                "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
+              }
             }}
             onLoadStart={this.handleStart}
             onMessage={this.handleMessage}
@@ -323,6 +351,9 @@ class Home extends React.Component {
             onNavigationStateChange={this.onNavigationStateChange}
           />
         }
+        <TouchableWithFeedback style={styles.touch} onPress={this.refersh}>
+                <Text style={styles.touchText}>refresh</Text>
+        </TouchableWithFeedback>
       </SafeAreaView>
     );
   }
