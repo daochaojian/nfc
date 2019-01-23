@@ -13,14 +13,21 @@ import {
   PermissionsAndroid,
   DeviceEventEmitter,
   AsyncStorage,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-navigation';
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
 import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
+import Icon from '../components/common/Icon';
+import nfcLogo from '../images/nfc.png';
 import netErr from '../images/errorNetwork.png';
+import colors from '../styles/colors';
 import scan from '../images/nfc.png';
 import logo from '../images/logo_dmsj.png';
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   containerView: {
@@ -29,9 +36,31 @@ const styles = StyleSheet.create({
   webView: {
     // zIndex: 9999,
   },
+  modalStyle: {
+    flex: 1,
+  },
+  modalBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flex: 1,
+    backgroundColor: colors.white,
+    margin: 10,
+    padding: 5,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // width: width - 15,
+    height: 200,
+  },
+  touchProfile: {
+    position: 'absolute',
+    top: 10,
+    right: 20,
+  },
   touch: {
     marginHorizontal: 50,
-    marginTop: 15,
     borderRadius: 20,
     flexDirection: 'row',
     height: 45,
@@ -68,14 +97,29 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   image: {
-    height: 220,
-    width: 280,
-
+    height: 180,
+    width: 240,
+    overflow: 'hidden',
+  },
+  nfcImage: {
+    height: 100,
+    width: 100,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  touchView: {
+    borderRadius: 20,
+    marginTop: 15,
     overflow: 'hidden',
   },
   scanImage: {
     height: 220,
     width: 220,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.alphaBlack(0.6),
+    // backgroundColor: colors.white,
   },
   indecator: {
     zIndex: 9999,
@@ -107,6 +151,8 @@ class Home extends React.Component {
 
   state = {
     url: '',
+    scanning: false,
+    showModal: false,
     isLogin: false,
     netStatus: true,
     latitude: 25.0623611,
@@ -164,7 +210,6 @@ class Home extends React.Component {
       }
     });
     this.checkNetInfo();
-    // this.isSupported();
   }
 
   componentWillUnmount() {
@@ -180,8 +225,11 @@ class Home extends React.Component {
       const { needRefresh, isLogin } = (nextProps.navigation
         && nextProps.navigation.state
         && nextProps.navigation.state.params) || {};
+      console.log(isLogin);
       if (isLogin) {
         this.setState({ isLogin: true });
+      } else if (isLogin === false) {
+        this.setState({ isLogin: false });
       }
     }
   }
@@ -259,7 +307,7 @@ class Home extends React.Component {
     );
   }
 
-  getLocation = async () => {
+  getLocation = () => {
     global.navigator.geolocation.getCurrentPosition(
       (location) => {
         if (location) {
@@ -301,7 +349,7 @@ class Home extends React.Component {
           }
         });
       },
-      { enableHighAccuracy: false, timeout: 5000 },
+      { enableHighAccuracy: false, timeout: 6000 },
     );
   };
 
@@ -312,12 +360,19 @@ class Home extends React.Component {
       }
     })
     .then(supported => {
-      console.log(supported);
+      if (Platform.OS === 'android') {
+        this.setState({
+          showModal: true,
+        });
+      }
+      this.setState({
+        scanning: true,
+      });
       this.startNFC();
     }).catch(() => {
       Alert.alert(
         'info',
-        'your device don\'t support NFC or don\'t have permission, please check!',
+        'Your cell phone handset doesn\'t have the necessary hardware to support our software application',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -328,10 +383,11 @@ class Home extends React.Component {
   jumpToTag = () => {
     const { navigation } = this.props;
     const key = navigation.state.key;
-    navigation.navigate('ScanDetail', {
+    navigation.navigate('Web', {
       // url: 'https://app.dmsj.network?uid=MbRb2cLe4RJ',
       // url: 'https://app.dmsj.network?uid=AkRZVcb6yRY',
-      url: 'https://app.dmsj.network?uid=zwQlLcBOWQx',
+      url: 'https://app.dmsj.network?uid=EWnwJcwq3mL',
+      login: false,
       key,
       latitude: this.state.latitude,
       longitude: this.state.longitude,
@@ -344,23 +400,30 @@ class Home extends React.Component {
     const key = navigation.state.key;
     NfcManager.registerTagEvent(tag => {
       if (tag.ndefMessage && tag.ndefMessage.length) {
+        this.setState({
+          showModal: false,
+          scanning: false,
+        });
         const text = this.parseUri(tag);
-        console.log(text);
         if (text !== null) {
-            navigation.navigate('ScanDetail', {
+          const reg = new RegExp("http://app.dmsj.network?uid=",'g');
+          if (reg.test(text)) {
+            navigation.navigate('Web', {
               url: text.replace(/^http/,"https"),
+              login: false,
               key,
               latitude: this.state.latitude,
               longitude: this.state.longitude,
             });
             NfcManager.unregisterTagEvent();
             this.setState({ url: text });
+            return ;
           }
-          return ;
+        }
       }
       Alert.alert(
-        'failed',
-        'unsupport tag, please check your tag!',
+        'Scan Failed',
+        'Unsupported tag detected, please scan a DMSJ TAG',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -407,15 +470,57 @@ class Home extends React.Component {
     NfcManager.unregisterTagEvent();
   }
 
+  jumpToProfile = () => {
+    const { navigation } = this.props;
+    const key = navigation.state.key;
+    navigation.navigate('Web', {
+      url: 'https://app.dmsj.network/my-account',
+      login: false,
+      key,
+      latitude: this.state.latitude,
+      longitude: this.state.longitude,
+    });
+  }
+
   startScanner = () => {
     this.isSupported();
   };
 
+  close = () => {
+    this.setState({
+      showModal: false,
+      scanning: false,
+    })
+  }
+
   render() {
     const { navigation } = this.props;
-    const { url, netStatus, loading, latitude, longitude, isLogin } = this.state;
+    const { url, netStatus, loading, latitude, longitude, isLogin, showModal, scanning } = this.state;
+    console.log(this.state);
     return (
       <SafeAreaView style={styles.containerView}>
+        <Modal
+          visible={showModal}
+          style={styles.modalStyle}
+          animationType="slide"
+          transparent
+          onRequestClose={this.close}
+          onShow={() => { }}
+        >
+          <View
+            style={styles.modalContainer}
+            pointerEvents="auto"
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={this.close}
+          >
+            <View style={styles.modalBottom}>
+              <Image source={nfcLogo} style={styles.nfcImage} resizeMode="contain" />
+              <Text>
+                Hold your device over the tag
+              </Text>
+            </View>
+          </View>
+        </Modal>
         {!netStatus && <View style={styles.error}>
           <Image source={netErr} style={styles.image} resizeMode="contain" />
           <Text style={styles.text}>connect error, please connect to internet first!</Text>
@@ -430,23 +535,34 @@ class Home extends React.Component {
           </View>
         }
           <View style={styles.container}>
+          {/* <TouchableWithFeedback style={styles.touchProfile} onPress={this.jumpToProfile}>
+            <Icon
+              name={'profile'}
+              width="30"
+              height="30"
+              fill='#888888'
+            />
+          </TouchableWithFeedback> */}
           <View style={styles.tips}>
             <Image source={logo} style={styles.image} resizeMode="contain" />
-            <Text style={styles.tipsText}>Hold your device over the tag</Text>
           </View>
           <View>
-            <TouchableWithFeedback
-              style={[styles.touch, styles.touchTop]}
-              // onPress={this.startScanner}
-              onPress={this.jumpToTag}
-            >
-              <Text style={styles.touchText}>Scan Tag</Text>
-            </TouchableWithFeedback>
-            {!isLogin &&
+            <View style={styles.touchView}>
+              <TouchableWithFeedback
+                style={[styles.touch, styles.touchTop]}
+                onPress={this.startScanner}
+                disabled={scanning}
+                // onPress={this.jumpToTag}
+              >
+                <Text style={styles.touchText}>Scan Tag</Text>
+              </TouchableWithFeedback>
+            </View>
+
+            {/* {!isLogin &&
               <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
                 <Text style={styles.touchText}>Log In</Text>
               </TouchableWithFeedback>
-            }
+            } */}
           </View>
 
         </View>

@@ -86,6 +86,7 @@ class Home extends React.Component {
 
   state = {
     url: '',
+    myBody: '',
     netStatus: true,
     cookie: '',
     fetching: true,
@@ -172,7 +173,7 @@ class Home extends React.Component {
     }).catch(() => {
       Alert.alert(
         'info',
-        'your device don\'t support NFC or don\'t have permission, please check!',
+        'Your cell phone handset doesn\'t have the necessary hardware to support our software application',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -200,8 +201,8 @@ class Home extends React.Component {
         }
       }
       Alert.alert(
-        'failed',
-        'unsupport tag, please check your tag!',
+        'Scan Failed',
+        'Unsupported tag detected, please scan a DMSJ TAG',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -240,7 +241,7 @@ class Home extends React.Component {
 
   onNavigationStateChange = (navState) => {
     const { navigation } = this.props;
-    console.log(navState.url);
+    const { url } = this.state;
     this.setState({
       uri: navState.url,
       title: navState.title,
@@ -266,7 +267,6 @@ class Home extends React.Component {
     const { navigation } = this.props;
     const { url } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
-    console.log(data);
     if (data.isLogin) {
       this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
@@ -283,13 +283,34 @@ class Home extends React.Component {
       } catch (error) {
         console.log(error);
       }
+    } else if (data.isLogin === false) {
+      this.storeData('isLogin', { isLogin: false});
+      const setParamsAction = NavigationActions.setParams({
+        params: { isLogin: data.isLogin },
+        key: this.state.key,
+      });
+      navigation.dispatch(setParamsAction);
+    }
+  }
+
+  handleEnd = () => {
+    const { latitude, longitude } = this.state;
+    console.log('end');
+    if (this.webview) {
+      this.webview.postMessage(JSON.stringify({
+        location: {
+          latitude,
+          longitude,
+        }
+      }));
     }
   }
 
   render() {
     const { navigation } = this.props;
-    const { url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
-    console.log(cookie);
+    const { myBody, url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
+    console.log(url);
+    console.log(myBody);
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -311,13 +332,17 @@ class Home extends React.Component {
             javaScriptEnabled
             useWebKit
             geolocationEnabled
+            originWhitelist={['*']}
             ref={(ref) => this.webview = ref}
             source={{
-              uri: login ? first ? `${url}&latitude=${latitude}&longitude=${longitude}` : 'https://oakandbarley.app.dmsj.network/' : `${url}&latitude=${latitude}&longitude=${longitude}`,
-              headers: {"cookie": cookie }
+              uri: login ? 'https://oakandbarley.app.dmsj.network/' : url,
+              // headers: !login ? {
+              //   "cookie": cookie,
+              // } : {},
             }}
             onLoadStart={this.handleStart}
             onMessage={this.handleMessage}
+            onLoadEnd={this.handleEnd}
             thirdPartyCookiesEnabled
             onLoadProgress={this.handleLoadProgress}
             onNavigationStateChange={this.onNavigationStateChange}

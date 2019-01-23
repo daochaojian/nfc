@@ -126,12 +126,11 @@ class Home extends React.Component {
     const latitude = navigation.getParam('latitude', 0);
     const longitude = navigation.getParam('longitude', 0);
     this.setState({
-      url: `${url}&latitude=${latitude}&longitude=${longitude}`,
+      url: url,
       key,
       latitude,
       longitude,
     });
-    this.isSupported();
   }
 
   componentWillUnmount() {
@@ -185,7 +184,7 @@ class Home extends React.Component {
     }).catch(() => {
       Alert.alert(
         'info',
-        'your device don\'t support NFC or don\'t have permission, please check!',
+        'Your cell phone handset doesn\'t have the necessary hardware to support our software application',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -208,8 +207,8 @@ class Home extends React.Component {
         }
       }
       Alert.alert(
-        'failed',
-        'unsupport tag, please check your tag!',
+        'Scan Failed',
+        'Unsupported tag detected, please scan a DMSJ TAG',
         [
             { text: 'ok', onPress: () => {} },
         ],
@@ -250,16 +249,6 @@ class Home extends React.Component {
     const { navigation } = this.props;
     const { url } = this.state;
     console.log(navState);
-    // if (navState.url === url) {
-    //   this.setState({
-    //     url: `${navState.url}`,
-    //     title: navState.title,
-    //     loading: navState.loading,
-    //     isBackButtonEnable: navState.canGoBack,
-    //     isForwardButtonEnable: navState.canGoForward,
-    //   });
-    //   return ;
-    // }
     this.setState({
       uri: navState.url,
       title: navState.title,
@@ -278,20 +267,19 @@ class Home extends React.Component {
   }
 
   handleStart = (navState) => {
-    console.log('here');
     this.setState({ loading: true });
   }
 
   handleMessage = async (event) => {
     const { navigation } = this.props;
-    const { url } = this.state;
+    const { url, key } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
     if (data.isLogin) {
       this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
-      Object.keys(data).forEach(key => {
-        if (key !== 'isLogin') {
-          cookieStr += key + '=' + data[key] + ';';
+      Object.keys(data).forEach(k => {
+        if (k !== 'isLogin') {
+          cookieStr += k + '=' + data[k] + ';';
         }
       });
       try {
@@ -302,19 +290,31 @@ class Home extends React.Component {
       } catch (error) {
         console.log(error);
       }
+    } else if (data.isLogin === false) {
+      this.storeData('isLogin', { isLogin: false});
+      const setParamsAction = NavigationActions.setParams({
+        params: { isLogin: data.isLogin },
+        key,
+      });
+      navigation.dispatch(setParamsAction);
     }
   }
 
-  refersh = () => {
+  handleEnd = () => {
+    const { latitude, longitude } = this.state;
     if (this.webview) {
-      this.webview.reload();
+      this.webview.postMessage(JSON.stringify({
+        location: {
+          latitude,
+          longitude,
+        }
+      }));
     }
   }
 
   render() {
     const { navigation } = this.props;
     const { url, netStatus, fetching, loading, latitude, longitude, cookie } = this.state;
-    console.log(url);
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -334,26 +334,26 @@ class Home extends React.Component {
         <WebView
             style={styles.webView}
             javaScriptEnabled
-            // useWebKit
+            useWebKit
             geolocationEnabled
+            originWhitelist={['*']}
             ref={(ref) => this.webview = ref}
             source={{
               uri: url,
+              // uri: 'https://app.dmsj.network/my-account',
               headers: {
                 "cookie": cookie,
-                "user-agent": 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36',
+                "origin": 'https://oakandbarley.app.dmsj.network',
               }
             }}
             onLoadStart={this.handleStart}
+            // onLoadEnd={this.handleEnd}
             onMessage={this.handleMessage}
             thirdPartyCookiesEnabled
             onLoadProgress={this.handleLoadProgress}
             onNavigationStateChange={this.onNavigationStateChange}
           />
         }
-        <TouchableWithFeedback style={styles.touch} onPress={this.refersh}>
-                <Text style={styles.touchText}>refresh</Text>
-        </TouchableWithFeedback>
       </SafeAreaView>
     );
   }

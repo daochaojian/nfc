@@ -11,8 +11,8 @@ import ScanDetail from '../containers/ScanDetail';
 const StackRouteConfigs = {
   // Web: { screen: Web },
   Home: { screen: Home },
-  Web: { screen: Web },
   ScanDetail: { screen: ScanDetail },
+  Web: { screen: Web },
 };
 
 // const StackConfig = {

@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start",
+    "ios": "react-native run-ios && react-devtools",
+    "android": "react-native run-android && react-devtools",
+    "android-release": "react-native run-android --variant=release",
+    "android-bundle": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/",
     "test": "jest"
   },
   "dependencies": {
@@ -14,6 +18,8 @@
     "react-native-nfc-manager": "1.1.1",
     "react-native-permissions": "^1.1.1",
     "react-native-public-ip": "^1.0.1",
+    "react-native-svg": "5.5.1",
+    "react-native-svg-icon": "0.7.0",
     "react-native-webview": "^3.1.2",
     "react-navigation": "3.0.8"
   },
@@ -21,6 +27,7 @@
     "babel-jest": "23.6.0",
     "jest": "23.6.0",
     "metro-react-native-babel-preset": "0.50.0",
+    "react-devtools": "^2.5.0",
     "react-test-renderer": "16.6.1"
   },
   "jest": {
