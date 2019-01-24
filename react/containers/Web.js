@@ -17,6 +17,8 @@ import { SafeAreaView, NavigationActions } from 'react-navigation';
 import { WebView } from "react-native-webview";
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
+import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
+import Icon from '../components/common/Icon';
 import netErr from '../images/errorNetwork.png';
 import scan from '../images/nfc.png';
 
@@ -75,11 +77,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 15,
   },
+  touchProfile: {
+    width: 40,
+    height: 40,
+    alignItems:'center',
+    justifyContent:'center',
+  },
 });
 
 class Home extends React.Component {
-  static navigationOptions =  {
-    headerTitle: '',
+  static navigationOptions = ({ navigation}) => {
+    const title = navigation.getParam('title', '');
+    const isLogin = navigation.getParam('isLogin', false);
+    const login = navigation.getParam('login', true);
+    const onJump = navigation.getParam('onJump', () =>{});
+    return {
+      headerTitle: title,
+      headerBackTitle: null,
+      headerTitleStyle: {
+        color: '#000000',
+      },
+      headerBackTitleStyle: {
+        color: '#000000',
+        backgroundColor: '#000000',
+      },
+      headerTintColor: '#000000',
+      headerRight: (!login && isLogin &&
+        <TouchableWithFeedback style={styles.touchProfile} onPress={onJump}>
+          <Icon
+            name="wheel"
+            width="25"
+            height="25"
+            fill='#000000'
+          />
+        </TouchableWithFeedback>),
+    };
   };
 
   webview = null;
@@ -88,6 +120,7 @@ class Home extends React.Component {
     url: '',
     myBody: '',
     netStatus: true,
+    isLogin: false,
     cookie: '',
     fetching: true,
     latitude: 0,
@@ -105,6 +138,7 @@ class Home extends React.Component {
   componentWillMount() {
     const { navigation } = this.props;
     this.retrieveCookie();
+    this.retrieveStatus();
     const url = navigation.getParam('url', '');
     const login = navigation.getParam('login', false);
     const key = navigation.getParam('key', '');
@@ -117,9 +151,11 @@ class Home extends React.Component {
       latitude,
       longitude,
     });
-    if (!login) {
-      this.isSupported();
-    }
+    navigation.setParams({
+      onJump: this.jumpToPro,
+      login,
+      key,
+    });
   }
 
   componentWillUnmount() {
@@ -130,6 +166,36 @@ class Home extends React.Component {
       key: this.state.key,
     });
     navigation.dispatch(setParamsAction);
+  }
+
+
+  jumpToPro = () => {
+    const { navigation } = this.props;
+    navigation.navigate('Settings', {
+      url: 'https://oakandbarley.app.dmsj.network/my-account/edit-account',
+      login: false,
+    });
+  }
+
+  retrieveStatus = async () => {
+    const { navigation } = this.props;
+    try {
+      const value = await AsyncStorage.getItem('isLogin');
+      if (value !== null) {
+        navigation.setParams({
+          isLogin: JSON.parse(value).isLogin,
+        });
+        this.setState({
+          isLogin: JSON.parse(value).isLogin,
+        });
+      }
+      return value;
+     } catch (error) {
+      console.log(error);
+       return null;
+       // Error retrieving data
+     }
+     return null;
   }
 
   retrieveCookie = async () => {
@@ -242,6 +308,12 @@ class Home extends React.Component {
   onNavigationStateChange = (navState) => {
     const { navigation } = this.props;
     const { url } = this.state;
+    console.log(navState);
+    if (navState.title && navState.title !== '') {
+      navigation.setParams({
+        title: navState.title,
+      });
+    }
     this.setState({
       uri: navState.url,
       title: navState.title,
@@ -265,51 +337,63 @@ class Home extends React.Component {
 
   handleMessage = async (event) => {
     const { navigation } = this.props;
-    const { url } = this.state;
+    const { url, key, login } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
+    console.log(event.nativeEvent.data);
     if (data.isLogin) {
       this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
-      Object.keys(data).forEach(key => {
-        if (key !== 'isLogin') {
-          cookieStr += key + '=' + data[key] + ';';
+      Object.keys(data).forEach(k => {
+        if (k !== 'isLogin') {
+          cookieStr += k + '=' + data[k] + ';';
         }
       });
       try {
         await AsyncStorage.setItem('cookie', cookieStr);
-        navigation.navigate('Home', {
-          isLogin: data.isLogin,
-        });
+        if (login) {
+          navigation.navigate('Home', {
+            isLogin: data.isLogin,
+          });
+        } else {
+          navigation.setParams({
+            isLogin: data.isLogin,
+          })
+          const setParamsAction = NavigationActions.setParams({
+            params: {
+              isLogin: data.isLogin
+            },
+            key,
+          });
+          navigation.dispatch(setParamsAction);
+        }
       } catch (error) {
         console.log(error);
       }
     } else if (data.isLogin === false) {
       this.storeData('isLogin', { isLogin: false});
+      try {
+        await AsyncStorage.setItem('cookie', '');
+      } catch (error) {
+        console.log(error);
+      }
+      this.setState({
+        cookie: '',
+      });
+      navigation.setParams({
+        isLogin: data.isLogin,
+      })
       const setParamsAction = NavigationActions.setParams({
         params: { isLogin: data.isLogin },
-        key: this.state.key,
+        key,
       });
       navigation.dispatch(setParamsAction);
-    }
-  }
-
-  handleEnd = () => {
-    const { latitude, longitude } = this.state;
-    console.log('end');
-    if (this.webview) {
-      this.webview.postMessage(JSON.stringify({
-        location: {
-          latitude,
-          longitude,
-        }
-      }));
     }
   }
 
   render() {
     const { navigation } = this.props;
     const { myBody, url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
-    console.log(url);
+    console.log(this.state);
     console.log(myBody);
     return (
       <SafeAreaView style={styles.containerView}>
@@ -336,13 +420,11 @@ class Home extends React.Component {
             ref={(ref) => this.webview = ref}
             source={{
               uri: login ? 'https://oakandbarley.app.dmsj.network/' : url,
-              // headers: !login ? {
-              //   "cookie": cookie,
-              // } : {},
+              headers: cookie ?  { "cookie": cookie } : {}
             }}
             onLoadStart={this.handleStart}
             onMessage={this.handleMessage}
-            onLoadEnd={this.handleEnd}
+            // onLoadEnd={this.handleEnd}
             thirdPartyCookiesEnabled
             onLoadProgress={this.handleLoadProgress}
             onNavigationStateChange={this.onNavigationStateChange}

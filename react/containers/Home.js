@@ -55,9 +55,10 @@ const styles = StyleSheet.create({
     height: 200,
   },
   touchProfile: {
-    position: 'absolute',
-    top: 10,
-    right: 20,
+    width: 40,
+    height: 40,
+    alignItems:'center',
+    justifyContent:'center',
   },
   touch: {
     marginHorizontal: 50,
@@ -143,8 +144,36 @@ const styles = StyleSheet.create({
 });
 
 class Home extends React.Component {
-  static navigationOptions =  {
-    header: null,
+  static navigationOptions = ({ navigation}) => {
+    const onJump = navigation.getParam('onJump', () => {});
+    return {
+      headerStyle: {
+        backgroundColor: colors.white,
+        elevation: 0,
+        borderBottomColor: colors.transparent,
+        borderBottomWidth: 0,
+        shadowColor: colors.transparent,
+      },
+      headerTitle: null,
+      headerBackTitle: null,
+      headerTitleStyle: {
+        color: '#000000',
+      },
+      headerBackTitleStyle: {
+        color: '#000000',
+        backgroundColor: '#000000',
+      },
+      headerTintColor: '#000000',
+      headerRight: (
+        <TouchableWithFeedback style={styles.touchProfile} onPress={onJump}>
+          <Icon
+          name="humen"
+          width="25"
+          height="25"
+          fill='#000000'
+        />
+      </TouchableWithFeedback>),
+    };
   };
 
   webview = null;
@@ -166,6 +195,7 @@ class Home extends React.Component {
   };
 
   componentWillMount() {
+    const { navigation } = this.props;
     if (Platform.OS === 'android') {
       PermissionsAndroid.check(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -201,6 +231,8 @@ class Home extends React.Component {
         this.getLocation();
       });
     } else {
+      // this.openLinking();
+      // this.getLocation();
       this.checkIosPermission();
     }
     this.retrieveStatus();
@@ -210,6 +242,9 @@ class Home extends React.Component {
       }
     });
     this.checkNetInfo();
+    navigation.setParams({
+      onJump: this.jumpToProfile,
+    });
   }
 
   componentWillUnmount() {
@@ -256,6 +291,16 @@ class Home extends React.Component {
     if (!status) {
       this.setState({ netStatus: status });
     }
+  }
+
+  requestPermission = () => {
+    Permissions.request('location').then(response => {
+      console.log(response);
+    })
+  };
+
+  openLocalSettings = () => {
+    Permissions.openSettings();
   }
 
   checkIosPermission = () => {
@@ -310,6 +355,7 @@ class Home extends React.Component {
   getLocation = () => {
     global.navigator.geolocation.getCurrentPosition(
       (location) => {
+        console.log(location);
         if (location) {
           this.setState({
             latitude: location.coords.latitude,
@@ -324,6 +370,7 @@ class Home extends React.Component {
   geoLowAccuracy = () => {
     global.navigator.geolocation.getCurrentPosition(
       (location) => {
+        console.log(location);
         if (location) {
           this.setState({
             latitude: location.coords.latitude,
@@ -332,6 +379,7 @@ class Home extends React.Component {
         }
       },
       (err) => {
+        console.log(err);
         Permissions.check('location').then(response => {
           if (response === 'undetermined') {
             this.getLocation();
@@ -356,6 +404,9 @@ class Home extends React.Component {
   isSupported = () => {
     NfcManager.start({
       onSessionClosedIOS: () => {
+        this.setState({
+          scanning: false,
+        });
         NfcManager.unregisterTagEvent();
       }
     })
@@ -383,10 +434,12 @@ class Home extends React.Component {
   jumpToTag = () => {
     const { navigation } = this.props;
     const key = navigation.state.key;
-    navigation.navigate('Web', {
+    navigation.navigate('ScanDetail', {
       // url: 'https://app.dmsj.network?uid=MbRb2cLe4RJ',
       // url: 'https://app.dmsj.network?uid=AkRZVcb6yRY',
-      url: 'https://app.dmsj.network?uid=EWnwJcwq3mL',
+      // url: 'https://app.dmsj.network?uid=EWnwJcwq3mL',
+      url: 'https://app.dmsj.network?uid=djmYqcL02ma',
+      // url: 'https://app.dmsj.network?uid=Y4nMZce3pRK',
       login: false,
       key,
       latitude: this.state.latitude,
@@ -406,9 +459,9 @@ class Home extends React.Component {
         });
         const text = this.parseUri(tag);
         if (text !== null) {
-          const reg = new RegExp("http://app.dmsj.network?uid=",'g');
+          let reg = new RegExp("http://app.dmsj.network\\?uid=");
           if (reg.test(text)) {
-            navigation.navigate('Web', {
+            navigation.navigate('ScanDetail', {
               url: text.replace(/^http/,"https"),
               login: false,
               key,
@@ -417,10 +470,15 @@ class Home extends React.Component {
             });
             NfcManager.unregisterTagEvent();
             this.setState({ url: text });
-            return ;
+            return false;
           }
         }
       }
+      this.setState({
+        showModal: false,
+        scanning: false,
+      });
+      NfcManager.unregisterTagEvent();
       Alert.alert(
         'Scan Failed',
         'Unsupported tag detected, please scan a DMSJ TAG',
@@ -477,8 +535,6 @@ class Home extends React.Component {
       url: 'https://app.dmsj.network/my-account',
       login: false,
       key,
-      latitude: this.state.latitude,
-      longitude: this.state.longitude,
     });
   }
 
@@ -535,14 +591,6 @@ class Home extends React.Component {
           </View>
         }
           <View style={styles.container}>
-          {/* <TouchableWithFeedback style={styles.touchProfile} onPress={this.jumpToProfile}>
-            <Icon
-              name={'profile'}
-              width="30"
-              height="30"
-              fill='#888888'
-            />
-          </TouchableWithFeedback> */}
           <View style={styles.tips}>
             <Image source={logo} style={styles.image} resizeMode="contain" />
           </View>
@@ -557,12 +605,13 @@ class Home extends React.Component {
                 <Text style={styles.touchText}>Scan Tag</Text>
               </TouchableWithFeedback>
             </View>
-
-            {/* {!isLogin &&
-              <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
-                <Text style={styles.touchText}>Log In</Text>
-              </TouchableWithFeedback>
-            } */}
+            {!isLogin &&
+              <View style={styles.touchView}>
+                <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
+                  <Text style={styles.touchText}>Log In</Text>
+                </TouchableWithFeedback>
+              </View>
+            }
           </View>
 
         </View>

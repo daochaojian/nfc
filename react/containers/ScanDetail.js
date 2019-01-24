@@ -18,6 +18,7 @@ import { WebView } from "react-native-webview";
 import Permissions from 'react-native-permissions';
 import NfcManager, { Ndef, NfcTech, NdefParser } from 'react-native-nfc-manager';
 import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
+import Icon from '../components/common/Icon';
 import netErr from '../images/errorNetwork.png';
 import scan from '../images/nfc.png';
 
@@ -87,15 +88,43 @@ const styles = StyleSheet.create({
     marginTop: 15,
     color: '#000000',
   },
+  touchProfile: {
+    width: 40,
+    height: 40,
+    alignItems:'center',
+    justifyContent:'center',
+  },
   text: {
     fontSize: 12,
     marginTop: 15,
   },
 });
 
-class Home extends React.Component {
-  static navigationOptions =  {
-    headerTitle: '',
+class ScanDetail extends React.Component {
+  static navigationOptions = ({ navigation}) => {
+    const title = navigation.getParam('title', '');
+    const onJump = navigation.getParam('onJump', () =>{});
+    return {
+      headerTitle: title,
+      headerBackTitle: null,
+      headerTitleStyle: {
+        color: '#000000',
+      },
+      headerBackTitleStyle: {
+        color: '#000000',
+        backgroundColor: '#000000',
+      },
+      headerTintColor: '#000000',
+      headerRight: (
+        <TouchableWithFeedback style={styles.touchProfile} onPress={onJump}>
+          <Icon
+            name="humen"
+            width="25"
+            height="25"
+            fill='#000000'
+          />
+        </TouchableWithFeedback>),
+    };
   };
 
   webview = null;
@@ -131,6 +160,9 @@ class Home extends React.Component {
       latitude,
       longitude,
     });
+    navigation.setParams({
+      onJump: this.jumpToPro,
+    });
   }
 
   componentWillUnmount() {
@@ -141,6 +173,16 @@ class Home extends React.Component {
       key: this.state.key,
     });
     navigation.dispatch(setParamsAction);
+  }
+
+  jumpToPro = () => {
+    const { navigation } = this.props;
+    const { key } = this.state;
+    navigation.navigate('Web', {
+      url: 'https://app.dmsj.network/my-account',
+      login: false,
+      key,
+    });
   }
 
   retrieveCookie = async () => {
@@ -249,6 +291,11 @@ class Home extends React.Component {
     const { navigation } = this.props;
     const { url } = this.state;
     console.log(navState);
+    if (navState.title && navState.title !== '') {
+      navigation.setParams({
+        title: navState.title,
+      });
+    }
     this.setState({
       uri: navState.url,
       title: navState.title,
@@ -274,6 +321,7 @@ class Home extends React.Component {
     const { navigation } = this.props;
     const { url, key } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
+    console.log(event);
     if (data.isLogin) {
       this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
@@ -292,6 +340,14 @@ class Home extends React.Component {
       }
     } else if (data.isLogin === false) {
       this.storeData('isLogin', { isLogin: false});
+      try {
+        await AsyncStorage.setItem('cookie', '');
+      } catch (error) {
+        console.log(error);
+      }
+      this.setState({
+        cookie: '',
+      });
       const setParamsAction = NavigationActions.setParams({
         params: { isLogin: data.isLogin },
         key,
@@ -315,6 +371,7 @@ class Home extends React.Component {
   render() {
     const { navigation } = this.props;
     const { url, netStatus, fetching, loading, latitude, longitude, cookie } = this.state;
+    console.log(url);
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -340,14 +397,12 @@ class Home extends React.Component {
             ref={(ref) => this.webview = ref}
             source={{
               uri: url,
-              // uri: 'https://app.dmsj.network/my-account',
-              headers: {
-                "cookie": cookie,
-                "origin": 'https://oakandbarley.app.dmsj.network',
-              }
+              // headers: cookie ? {
+              //   "cookie": `${cookie}`,
+              // }: {},
             }}
             onLoadStart={this.handleStart}
-            // onLoadEnd={this.handleEnd}
+            onLoadEnd={this.handleEnd}
             onMessage={this.handleMessage}
             thirdPartyCookiesEnabled
             onLoadProgress={this.handleLoadProgress}
@@ -359,4 +414,4 @@ class Home extends React.Component {
   }
 }
 
-export default Home;
+export default ScanDetail;
