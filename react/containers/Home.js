@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f44336',
   },
   touchText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#ffffff',
   },
   container: {
@@ -260,7 +260,6 @@ class Home extends React.Component {
       const { needRefresh, isLogin } = (nextProps.navigation
         && nextProps.navigation.state
         && nextProps.navigation.state.params) || {};
-      console.log(isLogin);
       if (isLogin) {
         this.setState({ isLogin: true });
       } else if (isLogin === false) {
@@ -602,13 +601,13 @@ class Home extends React.Component {
                 disabled={scanning}
                 // onPress={this.jumpToTag}
               >
-                <Text style={styles.touchText}>Scan Tag</Text>
+                <Text style={styles.touchText}>SCAN TAG</Text>
               </TouchableWithFeedback>
             </View>
             {!isLogin &&
               <View style={styles.touchView}>
                 <TouchableWithFeedback style={styles.touch} onPress={this.jumpToWeb}>
-                  <Text style={styles.touchText}>Log In</Text>
+                  <Text style={styles.touchText}>LOG IN</Text>
                 </TouchableWithFeedback>
               </View>
             }

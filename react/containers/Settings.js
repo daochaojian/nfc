@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   AsyncStorage,
 } from 'react-native';
-import { SafeAreaView, StackActions } from 'react-navigation';
+import { SafeAreaView, StackActions, NavigationActions } from 'react-navigation';
+import TouchableWithFeedback from '../components/common/TouchableWithFeedback';
+import Icon from '../components/common/Icon';
 import { WebView } from "react-native-webview";
 
 const styles = StyleSheet.create({
@@ -26,11 +28,19 @@ const styles = StyleSheet.create({
   webView: {
     zIndex: 999,
   },
+  touchProfile: {
+    width: 40,
+    height: 40,
+    alignItems:'center',
+    justifyContent:'center',
+  },
 });
 
-export default class Settings extends React.Component {
+class Settings extends React.Component {
   static navigationOptions = ({ navigation}) => {
     const title = navigation.getParam('title', '');
+    const loading = navigation.getParam('loading', true);
+    const onJump = navigation.getParam('logOut', null);
     return {
       headerTitle: title,
       headerBackTitle: null,
@@ -42,6 +52,18 @@ export default class Settings extends React.Component {
         backgroundColor: '#000000',
       },
       headerTintColor: '#000000',
+      headerRight: (!loading &&
+        <TouchableWithFeedback
+          style={styles.touchProfile}
+          onPress={onJump}
+        >
+          <Icon
+            name="logOut"
+            width="20"
+            height="20"
+            fill='#000000'
+          />
+        </TouchableWithFeedback>),
     };
   };
 
@@ -68,6 +90,36 @@ export default class Settings extends React.Component {
     });
   }
 
+  onLogOut = async () => {
+    const { navigation } = this.props;
+    const { key } = this.state;
+    console.log(key);
+    try {
+      await AsyncStorage.setItem('isLogin', JSON.stringify({ isLogin: false}));
+      await AsyncStorage.setItem('cookie', '');
+      // const script = 'var list = document.getElementsByClassName("button");Array.prototype.forEach.call(list, function (obj) {if (obj.tagName === "A") {obj.click();} });';
+      const localScript = 'goToLogout();';
+      if (this.webview) {
+        this.webview.injectJavaScript(localScript);
+      }
+      setTimeout(() => {
+        const setParamsAction = NavigationActions.setParams({
+          params: { isLogin: false },
+          key,
+        });
+        navigation.dispatch(setParamsAction);
+        const popAction = StackActions.pop({
+          n: 2,
+        });
+        navigation.dispatch(popAction);
+      }, 1000);
+    } catch (error) {
+      // Error saving data
+    }
+  }
+
+
+
   retrieveCookie = async () => {
     try {
       const value = await AsyncStorage.getItem('cookie');
@@ -93,14 +145,6 @@ export default class Settings extends React.Component {
     this.setState({ loading: true });
   }
 
-  storeData = async (key, data) => {
-    try {
-      await AsyncStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-      // Error saving data
-    }
-  };
-
   onNavigationStateChange = (navState) => {
     const { navigation } = this.props;
     const { url } = this.state;
@@ -119,73 +163,25 @@ export default class Settings extends React.Component {
     });
   }
 
-  handleMessage = async (event) => {
-    const { navigation } = this.props;
-    const { url, key, login } = this.state;
-    const data = JSON.parse(event.nativeEvent.data);
-    console.log(event);
-    if (data.isLogin) {
-      this.storeData('isLogin', { isLogin: true});
-      let cookieStr = '';
-      Object.keys(data).forEach(k => {
-        if (k !== 'isLogin') {
-          cookieStr += k + '=' + data[k] + ';';
-        }
-      });
-      try {
-        await AsyncStorage.setItem('cookie', cookieStr);
-        if (login) {
-          navigation.navigate('Home', {
-            isLogin: data.isLogin,
-          });
-        } else {
-          navigation.setParams({
-            isLogin: data.isLogin,
-          })
-          const setParamsAction = NavigationActions.setParams({
-            params: {
-              isLogin: data.isLogin
-            },
-            key,
-          });
-          navigation.dispatch(setParamsAction);
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    } else if (data.isLogin === false) {
-      this.storeData('isLogin', { isLogin: false});
-      try {
-        await AsyncStorage.setItem('cookie', '');
-      } catch (error) {
-        console.log(error);
-      }
-      this.setState({
-        cookie: '',
-      });
-      navigation.setParams({
-        isLogin: data.isLogin,
-      })
-      const setParamsAction = NavigationActions.setParams({
-        params: { isLogin: data.isLogin },
-        key,
-      });
-      navigation.dispatch(setParamsAction);
-      navigation.dispatch(StackActions.popToTop());
-    }
-  }
-
   handleEnd = () => {
+    const { navigation } = this.props;
+    navigation.setParams({
+      logOut: this.onLogOut,
+      loading: false,
+    });
     this.setState({
       loading: false,
     })
   }
 
+  handleShouldStart = (navState) => {
+    console.log(navState);
+    return true;
+  }
 
   render() {
     const { navigation } = this.props;
     const { url, fetching, loading, cookie } = this.state;
-    console.log(loading || fetching);
     return (
       <SafeAreaView style={styles.containerView}>
         {(loading || fetching) &&
@@ -207,13 +203,13 @@ export default class Settings extends React.Component {
             ref={(ref) => this.webview = ref}
             source={{
               uri: url,
-              headers: cookie ? {
-                "cookie": `${cookie}`,
-              }: {},
+              // headers: cookie ? {
+              //   "cookie": `${cookie}`,
+              // }: {},
             }}
             onLoadStart={this.handleStart}
             onLoadEnd={this.handleEnd}
-            onMessage={this.handleMessage}
+            onShouldStartLoadWithRequest={this.handleShouldStart}
             thirdPartyCookiesEnabled
             onNavigationStateChange={this.onNavigationStateChange}
           />
@@ -222,3 +218,5 @@ export default class Settings extends React.Component {
     );
   }
 }
+
+export default Settings;

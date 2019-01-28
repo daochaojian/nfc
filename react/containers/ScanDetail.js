@@ -103,7 +103,9 @@ const styles = StyleSheet.create({
 class ScanDetail extends React.Component {
   static navigationOptions = ({ navigation}) => {
     const title = navigation.getParam('title', '');
-    const onJump = navigation.getParam('onJump', () =>{});
+    const loading = navigation.getParam('loading', true);
+    const onJump = navigation.getParam('onJump', null);
+    const logined = navigation.getParam('logined', false);
     return {
       headerTitle: title,
       headerBackTitle: null,
@@ -115,10 +117,10 @@ class ScanDetail extends React.Component {
         backgroundColor: '#000000',
       },
       headerTintColor: '#000000',
-      headerRight: (
+      headerRight: (!loading &&
         <TouchableWithFeedback style={styles.touchProfile} onPress={onJump}>
           <Icon
-            name="humen"
+            name={logined ? "wheel" : "humen" }
             width="25"
             height="25"
             fill='#000000'
@@ -160,9 +162,6 @@ class ScanDetail extends React.Component {
       latitude,
       longitude,
     });
-    navigation.setParams({
-      onJump: this.jumpToPro,
-    });
   }
 
   componentWillUnmount() {
@@ -180,6 +179,16 @@ class ScanDetail extends React.Component {
     const { key } = this.state;
     navigation.navigate('Web', {
       url: 'https://app.dmsj.network/my-account',
+      login: false,
+      key,
+    });
+  }
+
+  jumpToSetting = () => {
+    const { navigation } = this.props;
+    const { key } = this.state;
+    navigation.navigate('Web', {
+      url: 'https://oakandbarley.app.dmsj.network/my-account/edit-account',
       login: false,
       key,
     });
@@ -214,49 +223,52 @@ class ScanDetail extends React.Component {
     }
   };
 
-  isSupported = () => {
-    NfcManager.start({
-      onSessionClosedIOS: () => {
-        NfcManager.unregisterTagEvent();
-      }
-    })
-    .then(supported => {
-      console.log(supported);
-      this.startNFC();
-    }).catch(() => {
-      Alert.alert(
-        'info',
-        'Your cell phone handset doesn\'t have the necessary hardware to support our software application',
-        [
-            { text: 'ok', onPress: () => {} },
-        ],
-      );
-    });
-  }
+  // isSupported = () => {
+  //   NfcManager.start({
+  //     onSessionClosedIOS: () => {
+  //       NfcManager.unregisterTagEvent();
+  //     }
+  //   })
+  //   .then(supported => {
+  //     console.log(supported);
+  //     this.startNFC();
+  //   }).catch(() => {
+  //     Alert.alert(
+  //       'info',
+  //       'Your cell phone handset doesn\'t have the necessary hardware to support our software application',
+  //       [
+  //           { text: 'ok', onPress: () => {} },
+  //       ],
+  //     );
+  //   });
+  // }
 
-  startNFC = () => {
-    const { navigation } = this.props;
-    const { url } = this.state;
-    NfcManager.registerTagEvent(tag => {
-      if (tag.ndefMessage && tag.ndefMessage.length) {
-        const text = this.parseUri(tag);
-        if (text !== null) {
-          const params = {
-            uid: this.getQueryByName(text, 'uid'),
-          }
-          this.webview.postMessage(JSON.stringify(params));
-          return ;
-        }
-      }
-      Alert.alert(
-        'Scan Failed',
-        'Unsupported tag detected, please scan a DMSJ TAG',
-        [
-            { text: 'ok', onPress: () => {} },
-        ],
-      );
-    }, 'Hold your device over the tag', false);
-  }
+  // startNFC = () => {
+  //   const { navigation } = this.props;
+  //   const { url } = this.state;
+  //   NfcManager.registerTagEvent(tag => {
+  //     if (tag.ndefMessage && tag.ndefMessage.length) {
+  //       const text = this.parseUri(tag);
+  //       if (text !== null) {
+  //         const params = {
+  //           uid: this.getQueryByName(text, 'uid'),
+  //         }
+  //         if (this.webview) {
+  //           this.webview.postMessage(JSON.stringify(params));
+  //         }
+
+  //         return ;
+  //       }
+  //     }
+  //     Alert.alert(
+  //       'Scan Failed',
+  //       'Unsupported tag detected, please scan a DMSJ TAG',
+  //       [
+  //           { text: 'ok', onPress: () => {} },
+  //       ],
+  //     );
+  //   }, 'Hold your device over the tag', false);
+  // }
 
   getQueryByName = (url, name) => {
     var reg = new RegExp('[?&]'+ name + '=([^&#]+)');
@@ -275,17 +287,17 @@ class ScanDetail extends React.Component {
     return null;
   }
 
-  goToNfcSetting = () => {
-    if (Platform.OS === 'android') {
-        NfcManager.goToNfcSetting()
-          .then(result => {
-              console.log('goToNfcSetting OK', result)
-          })
-          .catch(error => {
-              console.warn('goToNfcSetting fail', error)
-          });
-    }
-  }
+  // goToNfcSetting = () => {
+  //   if (Platform.OS === 'android') {
+  //       NfcManager.goToNfcSetting()
+  //         .then(result => {
+  //             console.log('goToNfcSetting OK', result)
+  //         })
+  //         .catch(error => {
+  //             console.warn('goToNfcSetting fail', error)
+  //         });
+  //   }
+  // }
 
   onNavigationStateChange = (navState) => {
     const { navigation } = this.props;
@@ -317,13 +329,14 @@ class ScanDetail extends React.Component {
     this.setState({ loading: true });
   }
 
-  handleMessage = async (event) => {
+  handleMessage = (event) => {
     const { navigation } = this.props;
     const { url, key } = this.state;
     const data = JSON.parse(event.nativeEvent.data);
-    console.log(event);
+    // console.log(event);
+    console.log(data);
+    // console.log(key);
     if (data.isLogin) {
-      this.storeData('isLogin', { isLogin: true});
       let cookieStr = '';
       Object.keys(data).forEach(k => {
         if (k !== 'isLogin') {
@@ -331,34 +344,69 @@ class ScanDetail extends React.Component {
         }
       });
       try {
-        await AsyncStorage.setItem('cookie', cookieStr);
-        navigation.navigate('Home', {
-          isLogin: data.isLogin,
+        AsyncStorage.setItem('isLogin', JSON.stringify({ isLogin: true}));
+        AsyncStorage.setItem('cookie', cookieStr);
+        const setParamsAction = NavigationActions.setParams({
+          params: { isLogin: data.isLogin },
+          key,
         });
+        navigation.dispatch(setParamsAction);
       } catch (error) {
         console.log(error);
       }
-    } else if (data.isLogin === false) {
-      this.storeData('isLogin', { isLogin: false});
-      try {
-        await AsyncStorage.setItem('cookie', '');
-      } catch (error) {
-        console.log(error);
-      }
-      this.setState({
-        cookie: '',
-      });
-      const setParamsAction = NavigationActions.setParams({
-        params: { isLogin: data.isLogin },
-        key,
-      });
-      navigation.dispatch(setParamsAction);
     }
+    // Alert.alert(
+    //   'get onPostMessage',
+    //   `sssss`,
+    //   [
+    //     { text: '确定', onPress: () => { } },
+    //   ],
+    // );
+    // } else if (data.isLogin === false) {
+    //   this.storeData('isLogin', { isLogin: false});
+    //   try {
+    //     await AsyncStorage.setItem('cookie', '');
+    //   } catch (error) {
+    //     console.log(error);
+    //   }
+    //   this.setState({
+    //     cookie: '',
+    //   });
+    //   const setParamsActions = NavigationActions.setParams({
+    //     params: { isLogin: data.isLogin },
+    //     key,
+    //   });
+    //   navigation.dispatch(setParamsActions);
+    // }
   }
 
-  handleEnd = () => {
+  handleEnd = (navState) => {
     const { latitude, longitude } = this.state;
+    const { navigation } = this.props;
+    const nav = navState.nativeEvent;
+    console.log(nav);
     if (this.webview) {
+      if (!nav.latitude) {
+        if (nav.url === 'https://oakandbarley.app.dmsj.network/') {
+          navigation.setParams({
+            onJump: this.jumpToPro,
+            loading: true,
+            logined: false,
+          });
+        } else if (nav.url === 'https://oakandbarley.app.dmsj.network/my-account') {
+          navigation.setParams({
+            onJump: this.jumpToSetting,
+            loading: false,
+            logined: true,
+          });
+        } else {
+          navigation.setParams({
+            onJump: this.jumpToPro,
+            loading: false,
+            logined: false,
+          });
+        }
+      }
       this.webview.postMessage(JSON.stringify({
         location: {
           latitude,

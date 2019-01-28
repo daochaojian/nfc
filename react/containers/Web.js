@@ -171,9 +171,11 @@ class Home extends React.Component {
 
   jumpToPro = () => {
     const { navigation } = this.props;
+    const { key } = this.state;
     navigation.navigate('Settings', {
       url: 'https://oakandbarley.app.dmsj.network/my-account/edit-account',
       login: false,
+      key,
     });
   }
 
@@ -350,22 +352,20 @@ class Home extends React.Component {
       });
       try {
         await AsyncStorage.setItem('cookie', cookieStr);
-        if (login) {
-          navigation.navigate('Home', {
-            isLogin: data.isLogin,
-          });
-        } else {
-          navigation.setParams({
-            isLogin: data.isLogin,
-          })
-          const setParamsAction = NavigationActions.setParams({
-            params: {
-              isLogin: data.isLogin
-            },
-            key,
-          });
-          navigation.dispatch(setParamsAction);
-        }
+        this.setState({
+          cookie: cookieStr,
+        });
+        navigation.setParams({
+          isLogin: data.isLogin,
+          login: false,
+        })
+        const setParamsActions = NavigationActions.setParams({
+          params: {
+            isLogin: data.isLogin
+          },
+          key,
+        });
+        navigation.dispatch(setParamsActions);
       } catch (error) {
         console.log(error);
       }
@@ -392,9 +392,8 @@ class Home extends React.Component {
 
   render() {
     const { navigation } = this.props;
-    const { myBody, url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
+    const { url, netStatus, fetching, loading, latitude, longitude, login, first, cookie } = this.state;
     console.log(this.state);
-    console.log(myBody);
     return (
       <SafeAreaView style={styles.containerView}>
         {!netStatus && <View style={styles.error}>
@@ -418,13 +417,13 @@ class Home extends React.Component {
             geolocationEnabled
             originWhitelist={['*']}
             ref={(ref) => this.webview = ref}
+            // source={require('./test.html')}
             source={{
               uri: login ? 'https://oakandbarley.app.dmsj.network/' : url,
-              headers: cookie ?  { "cookie": cookie } : {}
+              // headers: cookie ?  { "cookie": cookie } : {}
             }}
             onLoadStart={this.handleStart}
             onMessage={this.handleMessage}
-            // onLoadEnd={this.handleEnd}
             thirdPartyCookiesEnabled
             onLoadProgress={this.handleLoadProgress}
             onNavigationStateChange={this.onNavigationStateChange}
